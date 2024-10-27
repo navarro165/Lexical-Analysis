@@ -21,7 +21,7 @@ string reserved[] = { "END_OF_FILE",
     "LBRAC", "RBRAC", "LPAREN", "RPAREN",
     "NOTEQUAL", "GREATER", "LESS", "LTEQ", "GTEQ",
     "DOT", "NUM", "ID", "ERROR",
-    "REALNUM", "BASE08NUM", "BASE16NUM"
+    "REALNUM", "BASE08NUM",
 };
 
 
