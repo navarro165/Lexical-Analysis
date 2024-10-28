@@ -90,14 +90,24 @@ TokenType LexicalAnalyzer::FindKeywordIndex(string s)
     return ERROR;
 }
 
-bool IsDigit8(char c)
-{
-    return (c >= '0' && c <= '7');
-}
-
-bool IsDigitP8orZero(char c)
+bool IsPdigit8orZero(char c)
 {
     return (c == '0' || (c >= '1' && c <= '7'));
+}
+
+bool Isdigit16(char c)
+{
+    return ((c >= '0' && c <= '9') || (c >= 'A' && c <= 'F'));
+}
+
+bool IsPdigit16(char c)
+{
+    return ((c >= '1' && c <= '9') || (c >= 'A' && c <= 'F'));
+}
+
+bool IsPdigit16orZero(char c)
+{
+    return (c == '0' || (c >= '1' && c <= '9') || (c >= 'A' && c <= 'F'));
 }
 
 Token LexicalAnalyzer::ScanNumber() 
@@ -108,41 +118,55 @@ Token LexicalAnalyzer::ScanNumber()
     if (isdigit(c)) {
         tmp.lexeme = c;
 
-        // BASE08NUM
-        if (IsDigitP8orZero(c)) {
+        input.GetChar(c);
+
+        // BASE08NUM or BASE16NUM
+        
+        if (c == 'x') {
+            tmp.lexeme += c;
             input.GetChar(c);
 
-            if (c == 'x') {
+            if (c == '1') {
                 tmp.lexeme += c;
                 input.GetChar(c);
 
-                if (c == '0') {
+                if (c == '6') {
                     tmp.lexeme += c;
-                    input.GetChar(c);
-
-                    if (c == '8') {
-                        tmp.lexeme += c;
-                        tmp.token_type = BASE08NUM;
-                        tmp.line_no = line_no;
-                        return tmp;
-
-                    } else {
-                        input.UngetChar(c);
-                        input.UngetChar('0');
-                        input.UngetChar('x');
-                    }
+                    tmp.token_type = BASE16NUM;
+                    tmp.line_no = line_no;
+                    return tmp;
 
                 } else {
                     input.UngetChar(c);
+                    input.UngetChar('1');
+                    input.UngetChar('x');
+                }
+
+            } else if (c == '0') {
+                tmp.lexeme += c;
+                input.GetChar(c);
+
+                if (c == '8') {
+                    tmp.lexeme += c;
+                    tmp.token_type = BASE08NUM;
+                    tmp.line_no = line_no;
+                    return tmp;
+
+                } else {
+                    input.UngetChar(c);
+                    input.UngetChar('0');
                     input.UngetChar('x');
                 }
 
             } else {
                 input.UngetChar(c);
+                input.UngetChar('x');
             }
+            
+        } else {
+            input.UngetChar(c);
         }
 
-        // NUM
         input.GetChar(c);
         while (isdigit(c)) {
             tmp.lexeme += c;
