@@ -100,77 +100,93 @@ bool IsDigitP8(char c)
     return (c >= '1' && c <= '7');
 }
 
-Token LexicalAnalyzer::ScanNumber()
+Token LexicalAnalyzer::ScanNumber() 
 {
     char c;
-
     input.GetChar(c);
+
     if (isdigit(c)) {
 
-    
-        // TODO: You can check for REALNUM, BASE08NUM and BASE16NUM here!
-           
-        // BASE08NUM
-        Debug(c, tmp.lexeme);
-        if (IsDigitP8(c)) {
-            tmp.lexeme += c;
-
+        if (c == '0') {
+            tmp.lexeme = c;
             input.GetChar(c);
-            Debug(c, tmp.lexeme);   
 
-            while (!input.EndOfInput() && IsDigitP8(c)){
+            if (c == 'x') {
                 tmp.lexeme += c;
                 input.GetChar(c);
-                Debug(c, tmp.lexeme);  
-            }
 
-            Debug(c, tmp.lexeme);
-            if (c == 'x'){
-                tmp.lexeme += c;
-                input.GetChar(c);
-                Debug(c, tmp.lexeme); 
-                if (c == '0'){
+                if (c == '0') {
                     tmp.lexeme += c;
                     input.GetChar(c);
-                    Debug(c, tmp.lexeme); 
-                    
-                    if (c == '8'){
+
+                    if (c == '8') {
                         tmp.lexeme += c;
-                        input.GetChar(c);
-                        Debug(c, tmp.lexeme); 
                         tmp.token_type = BASE08NUM;
                         tmp.line_no = line_no;
                         return tmp;
-                    }
-                }
-            }
-        }
 
-        if (c == '0') {
-            tmp.lexeme = "0";
-        } else {
-            tmp.lexeme = "";
-            while (!input.EndOfInput() && isdigit(c)) {
+                    } else {
+                        input.UngetChar(c);
+                    }
+
+                } else {
+                    input.UngetChar(c);
+                }
+
+            } else {
+                input.UngetChar(c);
+            }
+
+            tmp.token_type = NUM;
+            tmp.line_no = line_no;
+            return tmp;
+        }
+        
+        if (IsDigitP8(c)) {
+            tmp.lexeme = c;
+            input.GetChar(c);
+
+            while (IsDigit8(c)) {
                 tmp.lexeme += c;
                 input.GetChar(c);
             }
-            if (!input.EndOfInput()) {
+
+            if (c == 'x') {
+                tmp.lexeme += c;
+                input.GetChar(c);
+
+                if (c == '0') {
+                    tmp.lexeme += c;
+                    input.GetChar(c);
+
+                    if (c == '8') {
+                        tmp.lexeme += c;
+                        tmp.token_type = BASE08NUM;
+                        tmp.line_no = line_no;
+                        return tmp;
+
+                    } else {
+                        input.UngetChar(c);
+                    }
+
+                } else {
+                    input.UngetChar(c);
+                }
+
+            } else {
                 input.UngetChar(c);
             }
+
+            tmp.token_type = NUM;
+            tmp.line_no = line_no;
+            return tmp;
         }
-        // TODO: You can check for REALNUM, BASE08NUM and BASE16NUM here!
-        tmp.token_type = NUM;
-        tmp.line_no = line_no;
-        return tmp;
-    } else {
-        if (!input.EndOfInput()) {
-            input.UngetChar(c);
-        }
-        tmp.lexeme = "";
-        tmp.token_type = ERROR;
-        tmp.line_no = line_no;
-        return tmp;
-    }
+    } 
+
+    tmp.lexeme = "";
+    tmp.token_type = ERROR;
+    tmp.line_no = line_no;
+    return tmp;
 }
 
 Token LexicalAnalyzer::ScanIdOrKeyword()
