@@ -12,6 +12,9 @@
 #include "lexer.h"
 #include "inputbuf.h"
 
+#define KEYWORDS_COUNT 5
+#define DEBUG false
+
 using namespace std;
 
 string reserved[] = { "END_OF_FILE",
@@ -24,9 +27,6 @@ string reserved[] = { "END_OF_FILE",
     "REALNUM", "BASE08NUM", "BASE16NUM"
 };
 
-
-#define KEYWORDS_COUNT 5
-#define DEBUG false
 string keyword[] = { "IF", "WHILE", "DO", "THEN", "PRINT" };
 
 void Debug(char c, string lexme){
@@ -90,135 +90,292 @@ TokenType LexicalAnalyzer::FindKeywordIndex(string s)
     return ERROR;
 }
 
-bool IsPdigit8orZero(char c)
-{
-    return (c == '0' || (c >= '1' && c <= '7'));
-}
-
-bool Isdigit16(char c)
-{
-    return ((c >= '0' && c <= '9') || (c >= 'A' && c <= 'F'));
-}
-
-bool IsPdigit16(char c)
-{
-    return ((c >= '1' && c <= '9') || (c >= 'A' && c <= 'F'));
-}
-
-bool IsPdigit16orZero(char c)
-{
-    return (c == '0' || (c >= '1' && c <= '9') || (c >= 'A' && c <= 'F'));
-}
-
-Token LexicalAnalyzer::ScanNumber() 
+bool LexicalAnalyzer::ScanBase16Num(Token &t)
 {
     char c;
+    string lexeme = "";
+    int start_line_no = line_no;
+    vector<char> read_chars;
+
     input.GetChar(c);
+    read_chars.push_back(c);
 
-    if (isdigit(c)) {
-        tmp.lexeme = c;
+    // pdigit16
+    if ((c >= '1' && c <= '9') || (c >= 'A' && c <= 'F') || c == '0') {
+        lexeme += c;
 
-        input.GetChar(c);
-
-        // BASE08NUM or BASE16NUM
-        
-        if (c == 'x') {
-            tmp.lexeme += c;
+        // digit16
+        while (true) {
             input.GetChar(c);
+            read_chars.push_back(c);
+            if (isdigit(c) || (c >= 'A' && c <= 'F')) {
+                lexeme += c;
+            } else {
+                break;
+            }
+        }
+
+        // x16
+        if (c == 'x') {
+            lexeme += c;
+            input.GetChar(c);
+            read_chars.push_back(c);
 
             if (c == '1') {
-                tmp.lexeme += c;
+                lexeme += c;
                 input.GetChar(c);
+                read_chars.push_back(c);
 
                 if (c == '6') {
-                    tmp.lexeme += c;
-                    tmp.token_type = BASE16NUM;
-                    tmp.line_no = line_no;
-                    return tmp;
+                    lexeme += c;
+                    t.lexeme = lexeme;
+                    t.token_type = BASE16NUM;
+                    t.line_no = start_line_no;
+                    return true;
 
                 } else {
-                    input.UngetChar(c);
-                    input.UngetChar('1');
-                    input.UngetChar('x');
+                    // not 6, unget all
+                    for (int i = read_chars.size() - 1; i >= 0; i--) {
+                        input.UngetChar(read_chars[i]);
+                    }
+                    return false;
                 }
 
-            } else if (c == '0') {
-                tmp.lexeme += c;
+            } else {
+                // not 1, unget all
+                for (int i = read_chars.size() - 1; i >= 0; i--) {
+                    input.UngetChar(read_chars[i]);
+                }
+                return false;
+            }
+
+        } else {
+            // not x, unget last char
+            input.UngetChar(c);
+            // unget all but last one
+            for (int i = read_chars.size() - 2; i >= 0; i--) {
+                input.UngetChar(read_chars[i]);
+            }
+            return false;
+        }
+
+    } else {
+        input.UngetChar(c);
+        return false;
+    }
+}
+
+bool LexicalAnalyzer::ScanBase08Num(Token &t)
+{
+    char c;
+    string lexeme = "";
+    int start_line_no = line_no;
+    vector<char> read_chars;
+
+    input.GetChar(c);
+    read_chars.push_back(c);
+
+    // pdigit8
+    if ((c >= '1' && c <= '7') || c == '0') {
+        lexeme += c;
+
+        // digit8
+        while (true) {
+            input.GetChar(c);
+            read_chars.push_back(c);
+            if (c >= '0' && c <= '7') {
+                lexeme += c;
+            } else {
+                break;
+            }
+        }
+
+        // x08
+        if (c == 'x') {
+            lexeme += c;
+            input.GetChar(c);
+            read_chars.push_back(c);
+
+            if (c == '0') {
+                lexeme += c;
                 input.GetChar(c);
+                read_chars.push_back(c);
 
                 if (c == '8') {
-                    tmp.lexeme += c;
-                    tmp.token_type = BASE08NUM;
-                    tmp.line_no = line_no;
-                    return tmp;
+                    lexeme += c;
+                    t.lexeme = lexeme;
+                    t.token_type = BASE08NUM;
+                    t.line_no = start_line_no;
+                    return true;
 
                 } else {
-                    input.UngetChar(c);
-                    input.UngetChar('0');
-                    input.UngetChar('x');
+                    // not 8, unget all
+                    for (int i = read_chars.size() - 1; i >= 0; i--) {
+                        input.UngetChar(read_chars[i]);
+                    }
+                    return false;
                 }
 
             } else {
-                input.UngetChar(c);
-                input.UngetChar('x');
+                // not 0, unget all
+                for (int i = read_chars.size() - 1; i >= 0; i--) {
+                    input.UngetChar(read_chars[i]);
+                }
+                return false;
             }
-            
+
         } else {
+            // not x, unget last
             input.UngetChar(c);
+            // unget all but last
+            for (int i = read_chars.size() - 2; i >= 0; i--) {
+                input.UngetChar(read_chars[i]);
+            }
+            return false;
         }
 
-        input.GetChar(c);
-        while (isdigit(c)) {
-            tmp.lexeme += c;
+    } else {
+        input.UngetChar(c);
+        return false;
+    }
+}
+
+bool LexicalAnalyzer::ScanRealNum(Token &t)
+{
+    char c;
+    string lexeme = "";
+    int start_line_no = line_no;
+    vector<char> read_chars;
+
+    input.GetChar(c);
+    read_chars.push_back(c);
+
+    if (isdigit(c)) {
+        lexeme += c;
+        while (true) {
             input.GetChar(c);
+            read_chars.push_back(c);
+            if (isdigit(c)) {
+                lexeme += c;
+            } else {
+                break;
+            }
         }
 
-        // REALNUM (maybe)
         if (c == '.') {
-            char nextChar;
-            input.GetChar(nextChar);
+            lexeme += c;
+            input.GetChar(c);
+            read_chars.push_back(c);
 
-            if (isdigit(nextChar)) {
-                tmp.lexeme += c;
-                tmp.lexeme += nextChar; 
-
-                input.GetChar(c);
-                while (isdigit(c)) {
-                    tmp.lexeme += c;
+            if (isdigit(c)) {
+                lexeme += c;
+                while (true) {
                     input.GetChar(c);
+                    read_chars.push_back(c);
+                    if (isdigit(c)) {
+                        lexeme += c;
+                    } else {
+                        break;
+                    }
                 }
-
-                if (!input.EndOfInput()) {
-                    input.UngetChar(c);
-                }
-
-                tmp.token_type = REALNUM;
-                tmp.line_no = line_no;
-                return tmp;
+                input.UngetChar(c); // unget last non-digit
+                t.lexeme = lexeme;
+                t.token_type = REALNUM;
+                t.line_no = start_line_no;
+                return true;
 
             } else {
-                input.UngetChar(nextChar);
-                input.UngetChar(c);
-                tmp.token_type = NUM;
-                tmp.line_no = line_no;
-                return tmp;
+                // unget all characters
+                for (int i = read_chars.size() - 1; i >= 0; i--) {
+                    input.UngetChar(read_chars[i]);
+                }
+                return false;
             }
 
         } else {
-            if (!input.EndOfInput()) {
-                input.UngetChar(c);
+            // unget last
+            input.UngetChar(c);
+            // unget all but last
+            for (int i = read_chars.size() - 2; i >= 0; i--) {
+                input.UngetChar(read_chars[i]);
             }
-
-            tmp.token_type = NUM;
-            tmp.line_no = line_no;
-            return tmp;
+            return false;
         }
-    } 
 
+    } else {
+        input.UngetChar(c);
+        return false;
+    }
+}
+
+bool LexicalAnalyzer::ScanNum(Token &t)
+{
+    char c;
+    string lexeme = "";
+    int start_line_no = line_no;
+    vector<char> read_chars;
+
+    input.GetChar(c);
+    read_chars.push_back(c);
+
+    if (isdigit(c)) {
+        lexeme += c;
+        while (true) {
+            input.GetChar(c);
+            read_chars.push_back(c);
+            if (isdigit(c)) {
+                lexeme += c;
+            } else {
+                break;
+            }
+        }
+        input.UngetChar(c);
+        t.lexeme = lexeme;
+        t.token_type = NUM;
+        t.line_no = start_line_no;
+        return true;
+
+    } else {
+        input.UngetChar(c);
+        return false;
+    }
+}
+
+Token LexicalAnalyzer::ScanNumber()
+{
+    Token tmp;
     tmp.lexeme = "";
-    tmp.token_type = ERROR;
     tmp.line_no = line_no;
-    return tmp;
+
+    if (ScanBase16Num(tmp)) {
+        return tmp;
+    }
+
+    if (ScanBase08Num(tmp)) {
+        return tmp;
+    }
+
+    if (ScanRealNum(tmp)) {
+        return tmp;
+    }
+
+    if (ScanNum(tmp)) {
+        return tmp;
+    }
+
+    // reaching this point means this might be an Id
+    char c;
+    input.GetChar(c);
+    if (isalpha(c)) {
+        input.UngetChar(c);
+        return ScanIdOrKeyword();
+    } else {
+        input.UngetChar(c);
+        tmp.lexeme = "";
+        tmp.token_type = ERROR;
+        tmp.line_no = line_no;
+        return tmp;
+    }
 }
 
 Token LexicalAnalyzer::ScanIdOrKeyword()
@@ -250,22 +407,6 @@ Token LexicalAnalyzer::ScanIdOrKeyword()
     return tmp;
 }
 
-// you should unget tokens in the reverse order in which they
-// are obtained. If you execute
-//
-//    t1 = lexer.GetToken();
-//    t2 = lexer.GetToken();
-//    t3 = lexer.GetToken();
-//
-// in this order, you should execute
-//
-//    lexer.UngetToken(t3);
-//    lexer.UngetToken(t2);
-//    lexer.UngetToken(t1);
-//
-// if you want to unget all three tokens. Note that it does not
-// make sense to unget t1 without first ungetting t2 and t3
-//
 TokenType LexicalAnalyzer::UngetToken(Token tok)
 {
     tokens.push_back(tok);

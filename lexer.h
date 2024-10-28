@@ -38,6 +38,10 @@ class LexicalAnalyzer {
     Token GetToken();
     TokenType UngetToken(Token);
     LexicalAnalyzer();
+    bool ScanBase16Num(Token &t);
+    bool ScanBase08Num(Token &t);
+    bool ScanRealNum(Token &t);
+    bool ScanNum(Token &t);
 
   private:
     std::vector<Token> tokens;
