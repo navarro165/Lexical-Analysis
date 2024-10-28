@@ -21,12 +21,19 @@ string reserved[] = { "END_OF_FILE",
     "LBRAC", "RBRAC", "LPAREN", "RPAREN",
     "NOTEQUAL", "GREATER", "LESS", "LTEQ", "GTEQ",
     "DOT", "NUM", "ID", "ERROR",
-    "REALNUM", "BASE08NUM",
+    "REALNUM", "BASE08NUM", "BASE16NUM"
 };
 
 
 #define KEYWORDS_COUNT 5
+#define DEBUG false
 string keyword[] = { "IF", "WHILE", "DO", "THEN", "PRINT" };
+
+void Debug(char c, string lexme){
+    if (DEBUG){
+        cout << "char: " << c << " , lexme: " << lexme << endl; 
+    }  
+}
 
 void Token::Print()
 {
@@ -83,12 +90,62 @@ TokenType LexicalAnalyzer::FindKeywordIndex(string s)
     return ERROR;
 }
 
+bool IsDigit8(char c)
+{
+    return (c >= '0' && c <= '7');
+}
+
+bool IsDigitP8(char c)
+{
+    return (c >= '1' && c <= '7');
+}
+
 Token LexicalAnalyzer::ScanNumber()
 {
     char c;
 
     input.GetChar(c);
     if (isdigit(c)) {
+
+    
+        // TODO: You can check for REALNUM, BASE08NUM and BASE16NUM here!
+           
+        // BASE08NUM
+        Debug(c, tmp.lexeme);
+        if (IsDigitP8(c)) {
+            tmp.lexeme += c;
+
+            input.GetChar(c);
+            Debug(c, tmp.lexeme);   
+
+            while (!input.EndOfInput() && IsDigitP8(c)){
+                tmp.lexeme += c;
+                input.GetChar(c);
+                Debug(c, tmp.lexeme);  
+            }
+
+            Debug(c, tmp.lexeme);
+            if (c == 'x'){
+                tmp.lexeme += c;
+                input.GetChar(c);
+                Debug(c, tmp.lexeme); 
+                if (c == '0'){
+                    tmp.lexeme += c;
+                    input.GetChar(c);
+                    Debug(c, tmp.lexeme); 
+                    
+                    if (c == '8'){
+                        tmp.lexeme += c;
+                        input.GetChar(c);
+                        Debug(c, tmp.lexeme); 
+                        tmp.token_type = BASE08NUM;
+                        tmp.line_no = line_no;
+                        return tmp;
+                    }
+                }
+            }
+        }
+
         if (c == '0') {
             tmp.lexeme = "0";
         } else {
@@ -163,7 +220,7 @@ Token LexicalAnalyzer::ScanIdOrKeyword()
 //
 TokenType LexicalAnalyzer::UngetToken(Token tok)
 {
-    tokens.push_back(tok);;
+    tokens.push_back(tok);
     return tok.token_type;
 }
 
