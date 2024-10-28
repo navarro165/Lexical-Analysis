@@ -95,9 +95,9 @@ bool IsDigit8(char c)
     return (c >= '0' && c <= '7');
 }
 
-bool IsDigitP8(char c)
+bool IsDigitP8orZero(char c)
 {
-    return (c >= '1' && c <= '7');
+    return (c == '0' || (c >= '1' && c <= '7'));
 }
 
 Token LexicalAnalyzer::ScanNumber() 
@@ -106,9 +106,10 @@ Token LexicalAnalyzer::ScanNumber()
     input.GetChar(c);
 
     if (isdigit(c)) {
+        tmp.lexeme = c;
 
-        if (c == '0') {
-            tmp.lexeme = c;
+        // BASE08NUM
+        if (IsDigitP8orZero(c)) {
             input.GetChar(c);
 
             if (c == 'x') {
@@ -127,53 +128,60 @@ Token LexicalAnalyzer::ScanNumber()
 
                     } else {
                         input.UngetChar(c);
+                        input.UngetChar('0');
+                        input.UngetChar('x');
                     }
 
                 } else {
                     input.UngetChar(c);
+                    input.UngetChar('x');
                 }
 
             } else {
                 input.UngetChar(c);
             }
-
-            tmp.token_type = NUM;
-            tmp.line_no = line_no;
-            return tmp;
         }
-        
-        if (IsDigitP8(c)) {
-            tmp.lexeme = c;
+
+        // NUM
+        input.GetChar(c);
+        while (isdigit(c)) {
+            tmp.lexeme += c;
             input.GetChar(c);
+        }
 
-            while (IsDigit8(c)) {
+        // REALNUM (maybe)
+        if (c == '.') {
+            char nextChar;
+            input.GetChar(nextChar);
+
+            if (isdigit(nextChar)) {
                 tmp.lexeme += c;
-                input.GetChar(c);
-            }
+                tmp.lexeme += nextChar; 
 
-            if (c == 'x') {
-                tmp.lexeme += c;
                 input.GetChar(c);
-
-                if (c == '0') {
+                while (isdigit(c)) {
                     tmp.lexeme += c;
                     input.GetChar(c);
+                }
 
-                    if (c == '8') {
-                        tmp.lexeme += c;
-                        tmp.token_type = BASE08NUM;
-                        tmp.line_no = line_no;
-                        return tmp;
-
-                    } else {
-                        input.UngetChar(c);
-                    }
-
-                } else {
+                if (!input.EndOfInput()) {
                     input.UngetChar(c);
                 }
 
+                tmp.token_type = REALNUM;
+                tmp.line_no = line_no;
+                return tmp;
+
             } else {
+                input.UngetChar(nextChar);
+                input.UngetChar(c);
+                tmp.token_type = NUM;
+                tmp.line_no = line_no;
+                return tmp;
+            }
+
+        } else {
+            if (!input.EndOfInput()) {
                 input.UngetChar(c);
             }
 
