@@ -42,6 +42,7 @@ class LexicalAnalyzer {
     bool ScanBase08Num(Token &t);
     bool ScanRealNum(Token &t);
     bool ScanNum(Token &t);
+    bool ScanZero(Token &t);
 
   private:
     std::vector<Token> tokens;

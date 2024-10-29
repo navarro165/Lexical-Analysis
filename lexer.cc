@@ -341,30 +341,164 @@ bool LexicalAnalyzer::ScanNum(Token &t)
     }
 }
 
+bool LexicalAnalyzer::ScanZero(Token &t)
+{
+    char c;
+    string lexeme = "";
+    int start_line_no = line_no;
+    vector<char> read_chars;
+
+    // first 0
+    input.GetChar(c);
+    read_chars.push_back(c);
+    lexeme += c;
+
+    // check additional
+    while (true) {
+        input.GetChar(c);
+        if (c == '0') {
+            read_chars.push_back(c);
+            lexeme += c;
+        } else {
+            break;
+        }
+    }
+
+    if (c == 'x') {
+        // could now be a basenum
+        lexeme += c;
+        read_chars.push_back(c);
+        input.GetChar(c);
+        read_chars.push_back(c);
+
+        if (c == '0') {
+            lexeme += c;
+            input.GetChar(c);
+            read_chars.push_back(c);
+
+            if (c == '8') {
+                lexeme += c;
+
+                // NUM for zeros
+                for (int i = (lexeme.length() - 4) - 1; i >= 0; --i) {
+                    Token zeroToken;
+                    zeroToken.lexeme = "0";
+                    zeroToken.line_no = start_line_no;
+                    zeroToken.token_type = NUM;
+                    tokens.push_back(zeroToken);
+                }
+
+                // base number
+                Token baseToken;
+                baseToken.lexeme = lexeme.substr(lexeme.length() - 4);
+                baseToken.token_type = BASE08NUM;
+                baseToken.line_no = start_line_no;
+                tokens.push_back(baseToken);
+
+                // first zero
+                t = tokens.back();
+                tokens.pop_back();
+                return true;
+            }
+
+        } else if (c == '1') {
+            lexeme += c;
+            input.GetChar(c);
+            read_chars.push_back(c);
+
+            if (c == '6') {
+                lexeme += c;
+
+                // NUM for zeros 
+                for (int i = (lexeme.length() - 4) - 1; i >= 0; --i) {
+                    Token zeroToken;
+                    zeroToken.lexeme = "0";
+                    zeroToken.line_no = start_line_no;
+                    zeroToken.token_type = NUM;
+                    tokens.push_back(zeroToken);
+                }
+
+                // base number
+                Token baseToken;
+                baseToken.lexeme = lexeme.substr(lexeme.length() - 4);
+                baseToken.token_type = BASE16NUM;
+                baseToken.line_no = start_line_no;
+                tokens.push_back(baseToken);
+
+                // first zero
+                t = tokens.back();
+                tokens.pop_back();
+                return true;
+            }
+        }
+
+        // unget all
+        for (int i = read_chars.size() - 1; i >= 0; --i) {
+            input.UngetChar(read_chars[i]);
+        }
+        return false;
+        
+    } else {
+        // unget last read
+        input.UngetChar(c);
+
+        // NUM for each 0 read
+        for (int i = lexeme.length() - 1; i >= 0; --i) {
+            Token zeroToken;
+            zeroToken.lexeme = "0";
+            zeroToken.line_no = start_line_no;
+            zeroToken.token_type = NUM;
+            tokens.push_back(zeroToken);
+        }
+
+        // return first zero back
+        t = tokens.back();
+        tokens.pop_back();
+        return true;
+    }
+}
+
 Token LexicalAnalyzer::ScanNumber()
 {
+    // return stored tokens if available
+    if (!tokens.empty()) {
+        Token tmp = tokens.back();
+        tokens.pop_back();
+        return tmp;
+    }
+
     Token tmp;
     tmp.lexeme = "";
     tmp.line_no = line_no;
 
-    if (ScanBase16Num(tmp)) {
-        return tmp;
-    }
+    // peak without consuming
+    char c;
+    input.GetChar(c);
+    input.UngetChar(c);
 
-    if (ScanBase08Num(tmp)) {
-        return tmp;
-    }
+    if (c == '0') {
+        if (ScanZero(tmp)) {
+            return tmp;
+        }
+    } else {
+        if (ScanBase16Num(tmp)) {
+            return tmp;
+        }
 
-    if (ScanRealNum(tmp)) {
-        return tmp;
-    }
+        if (ScanBase08Num(tmp)) {
+            return tmp;
+        }
 
-    if (ScanNum(tmp)) {
-        return tmp;
+        if (ScanRealNum(tmp)) {
+            return tmp;
+        }
+
+        if (ScanNum(tmp)) {
+            return tmp;
+        }
     }
 
     // reaching this point means this might be an Id
-    char c;
     input.GetChar(c);
     if (isalpha(c)) {
         input.UngetChar(c);
